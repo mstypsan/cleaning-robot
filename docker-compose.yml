@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:alpine3.19
+    ports:
+      - 5432:5432
+    volumes:
+      - ~/apps/postgres:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_PASSWORD=vtDRT5pU9BU
+      - POSTGRES_USER=admin_user
+      - POSTGRES_DB=cleaning_db
+   
+  api:
+    container_name: cleaning-api
+    build:
+      dockerfile: CleaningApi/Dockerfile
+    image: cleaning-api
+    depends_on:
+      - postgres
+    ports:
+      - "5000:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: "development"
+      PUBLIC_URL: "http://localhost:5000"
+      ENV_CONNECTION_STRING: "Host=postgres;Database=cleaning_db;Username=admin_user;Password=vtDRT5pU9BU"
+    volumes:
+      - ${HOME}/.aspnet/https:/https
