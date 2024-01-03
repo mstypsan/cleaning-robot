@@ -31,5 +31,3 @@ services:
       ASPNETCORE_ENVIRONMENT: "development"
       PUBLIC_URL: "http://localhost:5000"
       ENV_CONNECTION_STRING: "Host=postgres;Database=cleaning_db;Username=admin_user;Password=vtDRT5pU9BU"
-    volumes:
-      - ${HOME}/.aspnet/https:/https
