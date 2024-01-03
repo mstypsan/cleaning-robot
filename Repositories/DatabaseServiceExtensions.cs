@@ -10,8 +10,6 @@ public static class DatabaseServiceExtensions
         services.AddDbContext<ExecutionsContext>(options =>
             options.UseNpgsql(connectString));
 
-        services.AddNpgsql<ExecutionsContext>(connectString);
-
         services.AddScoped<IExecutionRepository, ExecutionsRepository>();
     }
 }
