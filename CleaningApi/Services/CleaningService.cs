@@ -4,35 +4,37 @@ public class CleaningService
 {
     public int Clean(CleaningInstructions cleaningInstructions)
     {
-        int uniqueCleanedSpots = 1;
-        var xAxisCache = new Dictionary<int, HashSet<int>>();
-        var yAxisCache = new Dictionary<int, HashSet<int>>();
-
-        xAxisCache.Add(cleaningInstructions.Start.X, new HashSet<int> { cleaningInstructions.Start.Y });
-        yAxisCache.Add(cleaningInstructions.Start.Y, new HashSet<int> { cleaningInstructions.Start.X });
+        var uniqueCleanedSpots = 1;
+        var xAxisRangeCache = new Dictionary<int, List<PointRange>>();
+        var yAxisRangeCache = new Dictionary<int, List<PointRange>>();
 
         (int X, int Y) startPosition = (cleaningInstructions.Start.X, cleaningInstructions.Start.Y);
+        xAxisRangeCache.AddPointToCache(startPosition.X, startPosition.Y);
+        yAxisRangeCache.AddPointToCache(startPosition.Y, startPosition.X);
+
         foreach (var command in cleaningInstructions.Commands)
         {
             switch (command.Direction)
             {
                 case Direction.North:
-                    uniqueCleanedSpots += ManageCleaningInAxis(startPosition.X, yAxisCache, xAxisCache, command.Steps, step => startPosition.Y + step);
-                    startPosition.Y = startPosition.Y + command.Steps;
+                    uniqueCleanedSpots += ManageCleaningInAxis(startPosition.X, xAxisRangeCache, yAxisRangeCache, (startPosition.Y + 1, startPosition.Y + command.Steps));
+                    xAxisRangeCache.AddRangeToCache(startPosition.X, (startPosition.Y, startPosition.Y + command.Steps));
+                    startPosition.Y += command.Steps;
                     break;
                 case Direction.South:
-                    uniqueCleanedSpots += ManageCleaningInAxis(startPosition.X, yAxisCache, xAxisCache, command.Steps, step => startPosition.Y - step);
-                    startPosition.Y = startPosition.Y - command.Steps;
+                    uniqueCleanedSpots += ManageCleaningInAxis(startPosition.X, xAxisRangeCache, yAxisRangeCache, (startPosition.Y - command.Steps, startPosition.Y - 1));
+                    xAxisRangeCache.AddRangeToCache(startPosition.X, (startPosition.Y - command.Steps, startPosition.Y));
+                    startPosition.Y -= command.Steps;
                     break;
                 case Direction.East:
-                    uniqueCleanedSpots += ManageCleaningInAxis(startPosition.Y, xAxisCache, yAxisCache, command.Steps, step => startPosition.X + step);
-                    startPosition.X = startPosition.X + command.Steps;
+                    uniqueCleanedSpots += ManageCleaningInAxis(startPosition.Y, yAxisRangeCache, xAxisRangeCache, (startPosition.X + 1, startPosition.X + command.Steps));
+                    yAxisRangeCache.AddRangeToCache(startPosition.Y, (startPosition.X, startPosition.X + command.Steps));
+                    startPosition.X += command.Steps;
                     break;
                 case Direction.West:
-                    uniqueCleanedSpots += ManageCleaningInAxis(startPosition.Y, xAxisCache, yAxisCache, command.Steps, step => startPosition.X - step);
-                    startPosition.X = startPosition.X - command.Steps;
-                    break;
-                default:
+                    uniqueCleanedSpots += ManageCleaningInAxis(startPosition.Y, yAxisRangeCache, xAxisRangeCache, (startPosition.X - command.Steps, startPosition.X - 1));
+                    yAxisRangeCache.AddRangeToCache(startPosition.Y, (startPosition.X - command.Steps, startPosition.X));
+                    startPosition.X -= command.Steps;
                     break;
             }
         }
@@ -41,33 +43,55 @@ public class CleaningService
     }
 
     private int ManageCleaningInAxis(int steadyPositionOnAxis,
-        Dictionary<int, HashSet<int>> movingAxisCache,
-        Dictionary<int, HashSet<int>> stationaryAxisCache,
-        int steps,
-        Func<int, int> executeMoveOperation)
+        Dictionary<int, List<PointRange>> stationaryAxisCache,
+        Dictionary<int, List<PointRange>> movingAxisCache,
+        (int Start, int End) newMovingRange)
     {
-        var visitedPointsForStationaryAxis = stationaryAxisCache[steadyPositionOnAxis];
-        var isFirstTimeVisitForAxis = visitedPointsForStationaryAxis.Count == 1;
         var uniqueCleanedSpaces = 0;
 
-        for (int i = 1; i <= steps; i++)
+        var allVisitedRanges = stationaryAxisCache[steadyPositionOnAxis];
+        var isFirstTimeVisitForAxis = allVisitedRanges.Count == 1 && allVisitedRanges[0].Start == allVisitedRanges[0].End;
+        var hasAlreadyVisitedRange = IsRangeIncludedInVisitedRanges(allVisitedRanges, newMovingRange);
+        if (hasAlreadyVisitedRange)
         {
-            var newAxisPosition = executeMoveOperation(i);
+            return 0;
+        }
 
-            if (isFirstTimeVisitForAxis || !visitedPointsForStationaryAxis.Contains(newAxisPosition))
+        for (var newAxisPosition = newMovingRange.Start; newAxisPosition <= newMovingRange.End; newAxisPosition++)
+        {
+            if (isFirstTimeVisitForAxis || !IsPointInVisitedRanges(allVisitedRanges, newAxisPosition))
             {
                 uniqueCleanedSpaces++;
-                visitedPointsForStationaryAxis.Add(newAxisPosition);
-                if (movingAxisCache.ContainsKey(newAxisPosition))
-                {
-                    movingAxisCache[newAxisPosition].Add(steadyPositionOnAxis);
-                }
-                else
-                {
-                    movingAxisCache.Add(newAxisPosition, new HashSet<int>() { steadyPositionOnAxis });
-                }
+                movingAxisCache.AddPointToCache(newAxisPosition, steadyPositionOnAxis);
             }
         }
+
         return uniqueCleanedSpaces;
+    }
+
+    private bool IsPointInVisitedRanges(List<PointRange> allVisitedRanges, int newAxisPosition)
+    {
+        foreach (var range in allVisitedRanges)
+        {
+            if (newAxisPosition >= range.Start && newAxisPosition <= range.End)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool IsRangeIncludedInVisitedRanges(List<PointRange> allVisitedRanges, (int Start, int End) newRange)
+    {
+        foreach (var range in allVisitedRanges)
+        {
+            if (newRange.Start >= range.Start && newRange.End <= range.End)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
